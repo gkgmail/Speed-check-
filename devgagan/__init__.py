@@ -8,7 +8,7 @@
 # YouTube: https://youtube.com/@dev_gagan
 # Created: 2025-01-11
 # Last Modified: 2025-01-11
-# Version: 2.0.5 (Optimized)
+# Version: 2.0.5 (Optimized for Koyeb)
 # License: MIT License
 # ---------------------------------------------------
 
@@ -58,17 +58,38 @@ else:
 # ⚡ OPTIMIZED: Use only if actually needed. Comment out if not used.
 # telethon_client = TelegramClient('telethon_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-# MongoDB setup
-tclient = AsyncIOMotorClient(MONGO_DB)
-tdb = tclient["telegram_bot"]  # Your database
-token = tdb["tokens"]  # Your tokens collection
+# ⚡ OPTIMIZED: MongoDB setup - only if MONGO_DB is provided
+tclient = None
+tdb = None
+token = None
+
+if MONGO_DB:
+    try:
+        tclient = AsyncIOMotorClient(MONGO_DB)
+        tdb = tclient["telegram_bot"]
+        token = tdb["tokens"]
+        print("✅ MongoDB client initialized")
+    except Exception as e:
+        print(f"⚠️  MongoDB initialization failed: {e}")
+        tclient = None
+        token = None
+else:
+    print("⚠️  MONGO_DB not configured. Database features disabled.")
 
 async def create_ttl_index():
     """Ensure the TTL index exists for the `tokens` collection."""
-    await token.create_index("expires_at", expireAfterSeconds=0)
+    if token is None:
+        return
+    try:
+        await token.create_index("expires_at", expireAfterSeconds=0)
+    except Exception as e:
+        print(f"⚠️  TTL index creation failed: {e}")
 
 # Run the TTL index creation when the bot starts
 async def setup_database():
+    if token is None:
+        print("⚠️  MongoDB not available. Skipping TTL index setup.")
+        return
     await create_ttl_index()
     print("✅ MongoDB TTL index created.")
 
@@ -80,6 +101,10 @@ async def restrict_bot():
     BOT_ID = getme.id
     BOT_USERNAME = getme.username
     BOT_NAME = f"{getme.first_name} {getme.last_name}" if getme.last_name else getme.first_name
+    
+    print(f"✅ Bot started successfully!")
+    print(f"📱 Bot ID: {BOT_ID}")
+    print(f"👤 Bot Username: @{BOT_USERNAME}")
     
     if pro:
         await pro.start()
