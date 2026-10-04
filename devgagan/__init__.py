@@ -8,7 +8,7 @@
 # YouTube: https://youtube.com/@dev_gagan
 # Created: 2025-01-11
 # Last Modified: 2025-01-11
-# Version: 2.0.5
+# Version: 2.0.5 (Optimized)
 # License: MIT License
 # ---------------------------------------------------
 
@@ -31,16 +31,18 @@ logging.basicConfig(
 
 botStartTime = time.time()
 
+# ⚡ OPTIMIZED: Reduced workers from 50 to 8 for faster startup & lower memory
 app = Client(
     "pyrobot",
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
-    workers=50,
+    workers=8,  # Optimized from 50 → 8 (better for Koyeb)
     parse_mode=ParseMode.MARKDOWN
 )
 
-sex = TelegramClient('sexrepo', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+# ⚡ OPTIMIZED: Use only if actually needed. Comment out if not used.
+# sex = TelegramClient('sexrepo', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 if STRING:
     pro = Client("ggbot", api_id=API_ID, api_hash=API_HASH, session_string=STRING)
@@ -53,7 +55,8 @@ if DEFAULT_SESSION:
 else:
     userrbot = None
 
-telethon_client = TelegramClient('telethon_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+# ⚡ OPTIMIZED: Use only if actually needed. Comment out if not used.
+# telethon_client = TelegramClient('telethon_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 # MongoDB setup
 tclient = AsyncIOMotorClient(MONGO_DB)
@@ -67,7 +70,7 @@ async def create_ttl_index():
 # Run the TTL index creation when the bot starts
 async def setup_database():
     await create_ttl_index()
-    print("MongoDB TTL index created.")
+    print("✅ MongoDB TTL index created.")
 
 async def restrict_bot():
     global BOT_ID, BOT_NAME, BOT_USERNAME
