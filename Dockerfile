@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     ffmpeg \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Copy and install requirements

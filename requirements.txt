@@ -1,7 +1,4 @@
 # Optimized requirements for Koyeb fast deployment
-# Removed heavy packages: speedtest-cli, extra deps
-# Kept: opencv-python-headless (needed for video metadata)
-
 pyrofork>=2.0
 pytz
 motor
