@@ -41,8 +41,12 @@ app = Client(
     parse_mode=ParseMode.MARKDOWN
 )
 
-# ⚡ OPTIMIZED: Use only if actually needed. Comment out if not used.
-# sex = TelegramClient('sexrepo', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+# ⚡ REQUIRED: Other modules depend on this symbol
+try:
+    sex = TelegramClient('sexrepo', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+except Exception as e:
+    print(f"⚠️  Secondary Telethon client failed: {e}")
+    sex = None
 
 if STRING:
     pro = Client("ggbot", api_id=API_ID, api_hash=API_HASH, session_string=STRING)
