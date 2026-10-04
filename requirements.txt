@@ -1,5 +1,6 @@
 # Optimized requirements for Koyeb fast deployment
-# Removed heavy packages: opencv-python-headless, speedtest-cli, extra deps
+# Removed heavy packages: speedtest-cli, extra deps
+# Kept: opencv-python-headless (needed for video metadata)
 
 pyrofork>=2.0
 pytz
@@ -15,3 +16,4 @@ psutil
 tgcrypto
 werkzeug==2.2.2
 aiofiles
+opencv-python-headless
