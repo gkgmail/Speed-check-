@@ -1,10 +1,5 @@
 build:
   docker:
     web: Dockerfile
-  config:
-    BUILDKIT_PROGRESS: plain
-    DOCKER_BUILDKIT: 1
-    BUILDKIT_INLINE_CACHE: 1
-
 run:
-  web: python -m devgagan
+  web: python app.py
