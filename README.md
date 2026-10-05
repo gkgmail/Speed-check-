@@ -1,25 +1,24 @@
-# ⚡ Speed Bot - Telegram Media Downloader
+# Speed-check-
 
-Super fast bot for downloading and uploading files.
+A small deployable Python application with a health check endpoint ready for Koyeb/Render/Heroku.
 
-## Deploy on Koyeb
+## Deployment
 
-1. Push to GitHub
-2. Connect repo to Koyeb
-3. Set environment variables
-4. Deploy!
+- Build uses Dockerfile
+- Start command is `python app.py`
+- Health endpoint is `/health`
 
-## Environment Variables
+## Required env vars for Telegram bot
 
-```
-API_ID=your_api_id
+```bash
+API_ID=123456
 API_HASH=your_api_hash
 BOT_TOKEN=your_bot_token
-OWNER_ID=your_user_id
-MONGO_DB=your_mongodb_url (optional)
+OWNER_ID=123456789
+MONGO_DB=your_mongodb_url  # optional
 ```
 
-## Start
+## Run locally
 
 ```bash
 python app.py
