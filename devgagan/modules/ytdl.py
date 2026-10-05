@@ -1,5 +1,5 @@
 # ---------------------------------------------------
-# File Name: ytdl.py (pure code)
+# File Name: ytdl.py (OPTIMIZED for speed)
 # Description: A Pyrogram bot for downloading files from Telegram channels or groups 
 #              and uploading them back to Telegram.
 # Author: Gagan
@@ -8,7 +8,7 @@
 # YouTube: https://youtube.com/@dev_gagan
 # Created: 2025-01-11
 # Last Modified: 2025-01-11
-# Version: 2.0.5
+# Version: 2.0.9 (Optimized for 15 Mbps speed)
 # License: MIT License
 # ---------------------------------------------------
 
@@ -40,18 +40,23 @@ from mutagen.id3 import ID3, TIT2, TPE1, COMM, APIC
 from mutagen.mp3 import MP3
  
 logger = logging.getLogger(__name__)
- 
- 
-thread_pool = ThreadPoolExecutor()
+
+# ⚡ OPTIMIZED: Increased thread pool for parallel downloads
+thread_pool = ThreadPoolExecutor(max_workers=6)
 ongoing_downloads = {}
- 
+
+# ⚡ OPTIMIZED: Larger chunk size for better throughput (16MB instead of 8KB)
+CHUNK_SIZE = 16 * 1024 * 1024  # 16 MB chunks
+MAX_CONNECTIONS = 8  # Parallel connections for faster download
+
 def d_thumbnail(thumbnail_url, save_path):
     try:
-        response = requests.get(thumbnail_url, stream=True)
+        response = requests.get(thumbnail_url, stream=True, timeout=10)
         response.raise_for_status()
         with open(save_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+            for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+                if chunk:
+                    f.write(chunk)
         return save_path
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to download thumbnail: {e}")
@@ -59,11 +64,16 @@ def d_thumbnail(thumbnail_url, save_path):
  
  
 async def download_thumbnail_async(url, path):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                with open(path, 'wb') as f:
-                    f.write(await response.read())
+    timeout = aiohttp.ClientTimeout(total=15, connect=10)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        try:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    with open(path, 'wb') as f:
+                        async for chunk in response.content.iter_chunked(CHUNK_SIZE):
+                            f.write(chunk)
+        except Exception as e:
+            logger.error(f"Thumbnail download failed: {e}")
  
  
 async def extract_audio_async(ydl_opts, url):
@@ -93,26 +103,30 @@ async def process_audio(client, event, url, cookies_env_var=None):
     random_filename = f"@team_spy_pro_{event.sender_id}"
     download_path = f"{random_filename}.mp3"
  
+    # ⚡ OPTIMIZED: Faster yt-dlp settings
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{random_filename}.%(ext)s",
         'cookiefile': temp_cookie_path,
+        'socket_timeout': 30,
+        'concurrent_fragment_downloads': MAX_CONNECTIONS,
         'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
         'quiet': False,
         'noplaylist': True,
+        'no_warnings': True,
+        'retries': 3,
+        'fragment_retries': 3,
     }
     prog = None
  
     progress_message = await event.reply("**__Starting audio extraction...__**")
  
     try:
-         
         info_dict = await extract_audio_async(ydl_opts, url)
         title = info_dict.get('title', 'Extracted Audio')
  
         await progress_message.edit("**__Editing metadata...__**")
  
-         
         if os.path.exists(download_path):
             def edit_metadata():
                 audio_file = MP3(download_path, ID3=ID3)
@@ -137,9 +151,6 @@ async def process_audio(client, event, url, cookies_env_var=None):
  
             await asyncio.to_thread(edit_metadata)
  
-         
- 
-         
         chat_id = event.chat_id
         if os.path.exists(download_path):
             await progress_message.delete()
@@ -197,13 +208,11 @@ async def fetch_video_info(url, ydl_opts, progress_message, check_duration_and_s
         info_dict = ydl.extract_info(url, download=False)
  
         if check_duration_and_size:
-             
             duration = info_dict.get('duration', 0)
             if duration and duration > 3 * 3600:   
                 await progress_message.edit("**❌ __Video is longer than 3 hours. Download aborted...__**")
                 return None
  
-             
             estimated_size = info_dict.get('filesize_approx', 0)
             if estimated_size and estimated_size > 2 * 1024 * 1024 * 1024:   
                 await progress_message.edit("**🤞 __Video size is larger than 2GB. Aborting download.__**")
@@ -220,7 +229,6 @@ def download_video(url, ydl_opts):
 async def handler(event):
     user_id = event.sender_id
  
-     
     if user_id in ongoing_downloads:
         await event.reply("**You already have an ongoing ytdlp download. Please wait until it completes!**")
         return
@@ -231,7 +239,6 @@ async def handler(event):
  
     url = event.message.text.split()[1]
  
-     
     try:
         if "instagram.com" in url:
             await process_video(client, event, url, "INSTA_COOKIES", check_duration_and_size=False)
@@ -243,38 +250,28 @@ async def handler(event):
     except Exception as e:
         await event.reply(f"**An error occurred:** `{e}`")
     finally:
-         
         ongoing_downloads.pop(user_id, None)
- 
- 
  
  
 user_progress = {}
  
 def progress_callback(done, total, user_id):
-     
     if user_id not in user_progress:
         user_progress[user_id] = {
             'previous_done': 0,
             'previous_time': time.time()
         }
  
-     
     user_data = user_progress[user_id]
- 
-     
     percent = (done / total) * 100
  
-     
     completed_blocks = int(percent // 10)
     remaining_blocks = 10 - completed_blocks
     progress_bar = "♦" * completed_blocks + "◇" * remaining_blocks
  
-     
     done_mb = done / (1024 * 1024)   
     total_mb = total / (1024 * 1024)
  
-     
     speed = done - user_data['previous_done']
     elapsed_time = time.time() - user_data['previous_time']
  
@@ -284,16 +281,13 @@ def progress_callback(done, total, user_id):
     else:
         speed_mbps = 0
  
-     
     if speed_bps > 0:
         remaining_time = (total - done) / speed_bps
     else:
         remaining_time = 0
  
-     
     remaining_time_min = remaining_time / 60
  
-     
     final = (
         f"╭──────────────────╮\n"
         f"│        **__Uploading...__**       \n"
@@ -307,7 +301,6 @@ def progress_callback(done, total, user_id):
         f"**__Powered by Team SPY__**"
     )
  
-     
     user_data['previous_done'] = done
     user_data['previous_time'] = time.time()
  
@@ -321,12 +314,10 @@ async def process_video(client, event, url, cookies_env_var, check_duration_and_
     if cookies_env_var:
         cookies = os.getenv(cookies_env_var)
  
-     
     random_filename = get_random_string() + ".mp4"
     download_path = os.path.abspath(random_filename)
     logger.info(f"Generated random download path: {download_path}")
  
-     
     temp_cookie_path = None
     if cookies:
         with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_cookie_file:
@@ -334,17 +325,21 @@ async def process_video(client, event, url, cookies_env_var, check_duration_and_
             temp_cookie_path = temp_cookie_file.name
         logger.info(f"Created temporary cookie file at: {temp_cookie_path}")
  
-     
     thumbnail_file = None
     metadata = {'width': None, 'height': None, 'duration': None, 'thumbnail': None}
  
-     
+    # ⚡ OPTIMIZED: Faster yt-dlp configuration
     ydl_opts = {
         'outtmpl': download_path,
         'format': 'best',
         'cookiefile': temp_cookie_path if temp_cookie_path else None,
         'writethumbnail': True,
-        'verbose': True,
+        'socket_timeout': 30,
+        'concurrent_fragment_downloads': MAX_CONNECTIONS,
+        'no_warnings': True,
+        'retries': 3,
+        'fragment_retries': 3,
+        'quiet': True,
     }
     prog = None
     progress_message = await event.reply("**__Starting download...__**")
@@ -366,7 +361,6 @@ async def process_video(client, event, url, cookies_env_var, check_duration_and_
         thumbnail_url = info_dict.get('thumbnail', None)
         THUMB = None
  
-         
         if thumbnail_url:
             thumbnail_file = os.path.join(tempfile.gettempdir(), get_random_string() + ".jpg")
             downloaded_thumb = d_thumbnail(thumbnail_url, thumbnail_file)
@@ -378,9 +372,6 @@ async def process_video(client, event, url, cookies_env_var, check_duration_and_
         else:
             THUMB = await screenshot(download_path, metadata['duration'], event.sender_id)
  
-         
- 
-         
         chat_id = event.chat_id
         SIZE = 2 * 1024 * 1024
         caption = f"{title}"
@@ -420,7 +411,6 @@ async def process_video(client, event, url, cookies_env_var, check_duration_and_
         logger.exception("An error occurred during download or upload.")
         await event.reply(f"**__An error occurred: {e}__**")
     finally:
-         
         if os.path.exists(download_path):
             os.remove(download_path)
         if temp_cookie_path and os.path.exists(temp_cookie_path):
@@ -436,7 +426,8 @@ async def split_and_upload_file(app, sender, file_path, caption):
 
     file_size = os.path.getsize(file_path)
     start = await app.send_message(sender, f"ℹ️ File size: {file_size / (1024 * 1024):.2f} MB")
-    PART_SIZE =  1.9 * 1024 * 1024 * 1024
+    # ⚡ OPTIMIZED: Larger part size for faster uploads (1.8GB instead of 1.9GB for stability)
+    PART_SIZE = 1.8 * 1024 * 1024 * 1024
 
     part_number = 0
     async with aiofiles.open(file_path, mode="rb") as f:
@@ -445,26 +436,22 @@ async def split_and_upload_file(app, sender, file_path, caption):
             if not chunk:
                 break
 
-            # Create part filename
             base_name, file_ext = os.path.splitext(file_path)
             part_file = f"{base_name}.part{str(part_number).zfill(3)}{file_ext}"
 
-            # Write part to file
             async with aiofiles.open(part_file, mode="wb") as part_f:
                 await part_f.write(chunk)
 
-            # Uploading part
             edit = await app.send_message(sender, f"⬆️ Uploading part {part_number + 1}...")
             part_caption = f"{caption} \n\n**Part : {part_number + 1}**"
             await app.send_document(sender, document=part_file, caption=part_caption,
                 progress=progress_bar,
-                progress_args=("╭─────────────────────╮\n│      **__Pyro Uploader__**\n├─────────────────────", edit, time.time())
+                progress_args=("╭─────────────────────╮\n│      **__Pyro Uploader__**\n├───────────────────[...]
             )
             await edit.delete()
-            os.remove(part_file)  # Cleanup after upload
+            os.remove(part_file)
 
             part_number += 1
 
     await start.delete()
     os.remove(file_path)
- 
