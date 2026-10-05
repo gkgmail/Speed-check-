@@ -5,10 +5,12 @@ app = Flask(__name__)
 
 @app.route("/")
 def welcome():
-    # Render the welcome page with animated "Team SPY" text
-    return render_template("welcome.html")
+    return "OK", 200
+
+@app.route("/health")
+def health():
+    return "OK", 200
 
 if __name__ == "__main__":
-    # Default to port 5000 if PORT is not set in the environment
     port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, threaded=True)
