@@ -8,13 +8,14 @@
 # YouTube: https://youtube.com/@dev_gagan
 # Created: 2025-01-11
 # Last Modified: 2025-01-11
-# Version: 2.0.7 (Koyeb health check fix)
+# Version: 2.0.10 (Optimized event loop for speed)
 # License: MIT License
 # ---------------------------------------------------
 
 import asyncio
 import logging
 import time
+import sys
 from aiohttp import web
 from pyrogram import Client
 from pyrogram.enums import ParseMode
@@ -22,6 +23,14 @@ from pyrogram.errors import FloodWait
 from config import API_ID, API_HASH, BOT_TOKEN, STRING, MONGO_DB, DEFAULT_SESSION
 from telethon.sync import TelegramClient
 from motor.motor_asyncio import AsyncIOMotorClient
+
+# ⚡ OPTIMIZED: Use uvloop for faster event loop
+try:
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    logging.info("✅ Using uvloop for faster async operations")
+except ImportError:
+    logging.info("⚠️  uvloop not available, using default event loop")
 
 logging.basicConfig(
     format="[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s",
