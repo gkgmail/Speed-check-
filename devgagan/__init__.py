@@ -42,10 +42,13 @@ app = Client(
 )
 
 # ⚡ REQUIRED: Other modules depend on this symbol
+# NOTE: Do NOT use bot_token with TelegramClient if already using it with Pyrogram Client
+# Use session string instead to avoid Telegram flood blocking
 try:
-    sex = TelegramClient('sexrepo', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+    sex = TelegramClient('sexrepo', API_ID, API_HASH)
+    # Do not start with bot_token - use DEFAULT_SESSION if available
 except Exception as e:
-    print(f"⚠️  Secondary Telethon client failed: {e}")
+    print(f"⚠️  Secondary Telethon client initialization failed: {e}")
     sex = None
 
 if STRING:
