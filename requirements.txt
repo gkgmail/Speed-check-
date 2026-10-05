@@ -1,14 +1,14 @@
-# Optimized requirements for Koyeb fast deployment
+# ⚡ Optimized requirements for fastest Koyeb deployment
 pyrofork>=2.0
 pytz
 motor
 flask
-aiohttp
+aiohttp[speedups]
 telethon
 aiojobs
 mutagen
-yt-dlp
-requests
+yt-dlp[default]
+requests[socks]
 psutil
 tgcrypto
 werkzeug==2.2.2
@@ -16,3 +16,5 @@ aiofiles
 opencv-python-headless
 speedtest-cli
 pymongo
+cchardet
+uvloop
