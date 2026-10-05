@@ -1,5 +1,10 @@
 build:
   docker:
-    worker: Dockerfile
+    web: Dockerfile
+  config:
+    BUILDKIT_PROGRESS: plain
+    DOCKER_BUILDKIT: 1
+    BUILDKIT_INLINE_CACHE: 1
+
 run:
-  worker: python3 -m devgagan
+  web: python -m devgagan
