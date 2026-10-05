@@ -8,7 +8,7 @@
 # YouTube: https://youtube.com/@dev_gagan
 # Created: 2025-01-11
 # Last Modified: 2025-01-11
-# Version: 2.0.5 (Optimized for Koyeb)
+# Version: 2.0.6 (Fixed FloodWait handling + Koyeb optimized)
 # License: MIT License
 # ---------------------------------------------------
 
@@ -16,7 +16,8 @@ import asyncio
 import logging
 import time
 from pyrogram import Client
-from pyrogram.enums import ParseMode 
+from pyrogram.enums import ParseMode
+from pyrogram.errors import FloodWait
 from config import API_ID, API_HASH, BOT_TOKEN, STRING, MONGO_DB, DEFAULT_SESSION
 from telethon.sync import TelegramClient
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -100,10 +101,46 @@ async def setup_database():
     await create_ttl_index()
     print("✅ MongoDB TTL index created.")
 
+async def safe_start_bot(client, client_name="Bot", max_retries=3):
+    """
+    Safely start a Pyrogram client with FloodWait handling.
+    
+    Args:
+        client: Pyrogram Client instance
+        client_name: Name of the client (for logging)
+        max_retries: Maximum number of retry attempts
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            await client.start()
+            print(f"✅ {client_name} started successfully (attempt {attempt}/{max_retries})")
+            return True
+        except FloodWait as e:
+            wait_seconds = max(30, e.value + 5)
+            print(f"⏳ {client_name}: Telegram flood protection activated. Waiting {wait_seconds} seconds (attempt {attempt}/{max_retries})...")
+            await asyncio.sleep(wait_seconds)
+        except Exception as e:
+            print(f"❌ {client_name} startup error (attempt {attempt}/{max_retries}): {e}")
+            if attempt == max_retries:
+                raise
+            await asyncio.sleep(5)  # Brief pause before retry
+    
+    return False
+
 async def restrict_bot():
+    """Main bot initialization with safe startup logic."""
     global BOT_ID, BOT_NAME, BOT_USERNAME
+    
     await setup_database()
-    await app.start()
+    
+    # Start main bot with FloodWait handling
+    if not await safe_start_bot(app, "Main Bot", max_retries=3):
+        raise RuntimeError("Failed to start main bot after retries")
+    
+    # Get bot information
     getme = await app.get_me()
     BOT_ID = getme.id
     BOT_USERNAME = getme.username
@@ -113,9 +150,25 @@ async def restrict_bot():
     print(f"📱 Bot ID: {BOT_ID}")
     print(f"👤 Bot Username: @{BOT_USERNAME}")
     
+    # Start secondary clients if configured
     if pro:
-        await pro.start()
+        try:
+            await safe_start_bot(pro, "Pro Client", max_retries=2)
+        except Exception as e:
+            print(f"⚠️  Pro client failed: {e}")
+    
     if userrbot:
-        await userrbot.start()
+        try:
+            await safe_start_bot(userrbot, "User Bot", max_retries=2)
+        except Exception as e:
+            print(f"⚠️  User bot failed: {e}")
 
-loop.run_until_complete(restrict_bot())
+# Start the bot safely
+try:
+    loop.run_until_complete(restrict_bot())
+except FloodWait as e:
+    print(f"❌ Critical: Telegram flood protection. Wait {e.value} seconds before restarting.")
+    exit(1)
+except Exception as e:
+    print(f"❌ Critical bot initialization error: {e}")
+    exit(1)
